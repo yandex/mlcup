@@ -28,5 +28,5 @@ python3.7 score.py original.txt detoxified.txt --embeddings embeddings_with_lemm
 \*для работы кода надо скачать и разархивировать модель и предобработанные эмбеддинги (см. секцию [Загрузки](#загрузки)) и установить необходимые библиотеки
 
 ## Загрузки
-Модель и предобработанные эмбеддинги: [ссылка](https://disk.yandex.ru/d/ALrzwOKS5AmOdg)
+Модель и предобработанные эмбеддинги: [ссылка](https://disk.yandex.ru/d/9fAiLtgX-rMjtQ)
 
