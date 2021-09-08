@@ -1,0 +1,72 @@
+ckpt_directory: checkpoints
+hydra:
+  run:
+    dir: ../outputs/${name}
+
+data:
+  metadata_file: /home/${env:USER}/mlcup/data/train/metadata_subset.json
+  images_directory: /home/${env:USER}/mlcup/data/train/images_subset
+  dataloader_workers: 8
+  num_train_samples: 15000
+
+loss:
+  temperature: 0.01
+
+model:
+  joint_dim: 128
+
+  image:
+    cls: i2t.model.ImageModel
+    args:
+      encoder_name: resnet50
+      weights: imagenet
+
+  text:
+    cls: i2t.model.TextModel
+    args:
+      hidden_size: 200
+      hidden_layers: 5
+
+optimization:
+  optimizer:
+    cls: torch.optim.Adam
+    args:
+      lr: 1.0e-4
+      weight_decay: 1.0e-6
+  lr_scheduler:
+    scheduler:
+      cls: torch.optim.lr_scheduler.MultiStepLR
+      args:
+        milestones: [60, 90]
+        gamma: 0.1
+    interval: epoch
+
+train:
+  accelerator: ddp
+  batch_size: 256
+  trainer_params:
+    limit_train_batches: 1.0
+    gpus: 1
+    precision: 16
+    log_every_n_steps: 10
+    flush_logs_every_n_steps: 100
+    checkpoint_callback: true
+    weights_summary: full
+    check_val_every_n_epoch: 1
+    num_sanity_val_steps: 8
+    terminate_on_nan: True
+  resume_from_checkpoint: ${ckpt_directory}/last.ckpt
+  plugins: {}
+  callbacks:
+    lr_logging: pytorch_lightning.callbacks.LearningRateMonitor
+    ckpt:
+      cls: pytorch_lightning.callbacks.ModelCheckpoint
+      args:
+        dirpath: ${ckpt_directory}
+        period: 1
+        save_last: true
+  logger:
+    cls: pytorch_lightning.loggers.TensorBoardLogger
+    args:
+      save_dir: ${ckpt_directory}/tb
+      name: ${name}
