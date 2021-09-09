@@ -151,8 +151,7 @@ def greedy_match_embs(a, b, dots=None):
 def calc_semantic_distance(a, b):
     a_embs = calc_embs(a)
     b_embs = calc_embs(b)
-    distance = greedy_match_embs(a_embs, b_embs)
-    return np.maximum(distance, 0)
+    return np.maximum(greedy_match_embs(a_embs, b_embs), 0)
 
 
 def distance_score(original, fixed):
@@ -183,6 +182,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('original_texts', type=argparse.FileType('r'))
     parser.add_argument('fixed_texts', type=argparse.FileType('r'))
+    parser.add_argument('--score', type=argparse.FileType('w'))
     parser.add_argument('--model', required=True, type=str)
     parser.add_argument('--embeddings', type=str, required=True)
     parser.add_argument('--device', type=str, choices=['cuda', 'cpu'], default='cpu')
@@ -191,18 +191,26 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    
+
+    print("Loading tokenizer", file=sys.stderr)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
+    print("Loading model", file=sys.stderr)
     model = AutoModelForSequenceClassification.from_pretrained(args.model).to(args.device)
     
+    print("Loading texts", file=sys.stderr)
     # load reference and submitted comments
     original_texts = list(map(str.strip, args.original_texts))
     fixed_texts = list(map(str.strip, args.fixed_texts))
     
     assert len(original_texts) == len(fixed_texts)
-    
+
     stemmer = Mystem()
+
+    print("Loading embeddings", file=sys.stderr)
     embs_vectors, embs_voc, embs_voc_by_id = load_embeddings(args.embeddings)
     
     with torch.inference_mode(True):
-        print(100 * (1 - compute_score(original_texts, fixed_texts)))
+        print("Scoring", file=sys.stderr)
+        print(100 * (1 - compute_score(original_texts, fixed_texts)), file=args.score)
+
+
