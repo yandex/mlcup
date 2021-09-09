@@ -27,7 +27,7 @@ def is_word_start(token):
     raise ValueError("Unknown tokenization type")
 
 
-def normalize(sentence, max_tokens_per_word=5):
+def normalize(sentence, max_tokens_per_word=20):
     sentence = ''.join(map(lambda c: c if c.isalpha() else ' ', sentence.lower()))
     ids = tokenizer(sentence)['input_ids']
     tokens = tokenizer.convert_ids_to_tokens(ids)[1:-1]
@@ -62,7 +62,7 @@ def predict_toxicity(sentences, batch_size=5, threshold=0.5, return_scores=False
     tqdm_fn = tqdm if verbose else lambda x, total: x
     
     for batch in tqdm_fn(iterate_batches(sentences, batch_size), total=np.ceil(len(sentences) / batch_size)):
-        normlized = [normalize(sent) for sent in batch]
+        normlized = [normalize(sent, max_tokens_per_word=5) for sent in batch]
         tokenized = tokenizer(normlized, return_tensors='pt', padding=True, max_length=512, truncation=True)
         
         logits = model(**{key: val.to(model.device) for key, val in tokenized.items()}).logits
