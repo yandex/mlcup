@@ -19,7 +19,7 @@ model = AutoModelForSequenceClassification.from_pretrained("trained_roberta/")
 
 Пример команды запуска:
 ```
-python3.7 score.py original.txt detoxified.txt --embeddings embeddings_with_lemmas.npz --model ./trained_roberta/ 
+python3.7 score.py original.txt detoxified.txt --embeddings embeddings_with_lemmas.npz --model ./trained_roberta/ --score - 
 ```
 \*для работы кода надо скачать и разархивировать модель и предобработанные эмбеддинги (см. секцию [Загрузки](#загрузки)) и установить необходимые библиотеки
 
