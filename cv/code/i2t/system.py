@@ -12,6 +12,7 @@ from omegaconf import OmegaConf
 import pytorch_lightning as pl
 import torch
 from torch import nn
+import torch.distributed as dist
 
 # i2t imports
 from i2t.utils import instantiate
@@ -39,26 +40,45 @@ class I2T(pl.LightningModule):
         text_features = nn.functional.normalize(self.text_projector(self.text_encoder(batch['text'])))
         return {
             'image_features': image_features,
-            'text_features':text_features,
-            'logits': image_features @ text_features.T
+            'text_features': text_features
         }
 
     def training_step(self, batch: Dict, batch_idx: int) -> Dict:
-        return self.step_model(batch, mode='train')
+        return self.step_model(self(batch), mode='train')
 
     def validation_step(self, batch: Dict, batch_idx: int) -> Dict:
-        return self.step_model(batch, mode='val')
+        return self.step_model(self(batch), mode='val')
 
-    def step_model(self, batch: Dict, mode: str) -> Dict:
-        predict = self(batch)
-        logits = predict['logits'] / self.hparams.loss.temperature
+    def step_model(self, local_outputs: Dict[str, torch.Tensor], mode: str) -> Dict:
+        logits = self.gather_logits(local_outputs)
         losses = self.calculate_loss(logits)
         metrics = self.calculate_metrics(logits)
         self.log_dict({f'{mode}/{name}': value for name, value in losses.items()})
         self.log_dict({f'{mode}/{name}': value for name, value in metrics.items()})
         return {'loss': losses['nce']}
 
+    def gather_logits(self, local_outputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """Calculate logits for globa batch gathered from all devices.
+
+        Uses a trick to reserve gradient flow,
+        see https://github.com/KevinMusgrave/pytorch-metric-learning/issues/10#issuecomment-593170720
+        """
+        gathered_outputs = {
+            key: [torch.ones_like(value) for _ in range(dist.get_world_size())]
+            for key, value in local_outputs.items()
+        }
+        for key, tensor_list in gathered_outputs.items():
+            dist.all_gather(tensor_list, local_outputs[key])
+            tensor_list[dist.get_rank()] = local_outputs[key]
+
+        image_features = torch.cat(gathered_outputs['image_features'], dim=0)
+        text_features = torch.cat(gathered_outputs['text_features'], dim=0)
+        logits = (image_features @ text_features.T) / self.hparams.loss.temperature
+        return logits
+
     def calculate_loss(self, logits):
+        """Contrastive NCE loss, see https://paperswithcode.com/method/nt-xent for details
+        """
         labels = torch.arange(0, logits.shape[0], device=self.device)
         loss_i2t = self.loss(logits, labels)
         loss_t2i = self.loss(logits.T, labels)

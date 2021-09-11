@@ -4,8 +4,8 @@ hydra:
     dir: ../outputs/${name}
 
 data:
-  metadata_file: /home/${env:USER}/mlcup/data/train/metadata_subset.json
-  images_directory: /home/${env:USER}/mlcup/data/train/images_subset
+  metadata_file: /home/${oc.env:USER}/mlcup/data/train/metadata_subset.json
+  images_directory: /home/${oc.env:USER}/mlcup/data/train/images_subset
   dataloader_workers: 8
   num_train_samples: 15000
 
@@ -42,11 +42,11 @@ optimization:
     interval: epoch
 
 train:
-  accelerator: ddp
   batch_size: 256
   trainer_params:
     limit_train_batches: 1.0
     gpus: 1
+    accelerator: ddp
     precision: 16
     log_every_n_steps: 10
     flush_logs_every_n_steps: 100
@@ -63,8 +63,7 @@ train:
       cls: pytorch_lightning.callbacks.ModelCheckpoint
       args:
         dirpath: ${ckpt_directory}
-        period: 1
-        save_last: true
+        every_n_epochs: 1
   logger:
     cls: pytorch_lightning.loggers.TensorBoardLogger
     args:
