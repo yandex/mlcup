@@ -44,4 +44,4 @@ def train(cfg: DictConfig) -> None:
     if resume_from_checkpoint is not None:
         logger.info(f"Resuming training from checkpoint {resume_from_checkpoint}")
 
-    trainer.fit(train_dataloader=train_dataloader, val_dataloaders=val_dataloader, model=model)
+    trainer.fit(train_dataloaders=train_dataloader, val_dataloaders=val_dataloader, model=model)
