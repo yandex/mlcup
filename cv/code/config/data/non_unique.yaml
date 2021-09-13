@@ -1,0 +1,4 @@
+metadata_file: /home/${oc.env:USER}/mlcup/data/train/metadata_non_unique.json
+images_directory: /home/${oc.env:USER}/mlcup/data/train/images_non_unique
+dataloader_workers: 8
+num_train_samples: 5_000_000

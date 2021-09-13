@@ -1,0 +1,4 @@
+metadata_file: /home/${oc.env:USER}/mlcup/data/train/metadata.json
+images_directory: /home/${oc.env:USER}/mlcup/data/train/images
+dataloader_workers: 8
+num_train_samples: 4_000_000

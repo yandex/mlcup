@@ -28,19 +28,18 @@ class I2T(pl.LightningModule):
     def __init__(self, config: DictConfig):
         super().__init__()
         self.save_hyperparameters(config)
-
-        self.image_encoder = instantiate(self.hparams.model.image)
-        self.image_projector = nn.Linear(self.image_encoder.output_dim, self.hparams.model.joint_dim)
-        self.text_encoder = instantiate(self.hparams.model.text)
-        self.text_projector = nn.Linear(self.text_encoder.output_dim, self.hparams.model.joint_dim)
+        self.modalities = ('text', 'image')
+        self.encoders = nn.ModuleDict({
+            modality: instantiate(self.hparams.model.get(modality))
+            for modality in self.modalities
+        })
+        # hard-coded ntxent loss for simplicity
         self.loss = nn.CrossEntropyLoss()
 
     def forward(self, batch: Dict) -> Dict:
-        image_features = nn.functional.normalize(self.image_projector(self.image_encoder(batch['image'])))
-        text_features = nn.functional.normalize(self.text_projector(self.text_encoder(batch['text'])))
         return {
-            'image_features': image_features,
-            'text_features': text_features
+            modality: self.encoders[modality](batch[modality])
+            for modality in self.modalities
         }
 
     def training_step(self, batch: Dict, batch_idx: int) -> Dict:
@@ -50,7 +49,7 @@ class I2T(pl.LightningModule):
         return self.step_model(self(batch), mode='val')
 
     def step_model(self, local_outputs: Dict[str, torch.Tensor], mode: str) -> Dict:
-        logits = self.gather_logits(local_outputs)
+        logits = self.gather_logits(local_outputs) / self.hparams.loss.temperature
         losses = self.calculate_loss(logits)
         metrics = self.calculate_metrics(logits)
         self.log_dict({f'{mode}/{name}': value for name, value in losses.items()})
@@ -60,7 +59,7 @@ class I2T(pl.LightningModule):
     def gather_logits(self, local_outputs: Dict[str, torch.Tensor]) -> torch.Tensor:
         """Calculate logits for globa batch gathered from all devices.
 
-        Uses a trick to reserve gradient flow,
+        Uses a trick to reverse gradient flow,
         see https://github.com/KevinMusgrave/pytorch-metric-learning/issues/10#issuecomment-593170720
         """
         gathered_outputs = {
@@ -71,12 +70,11 @@ class I2T(pl.LightningModule):
             dist.all_gather(tensor_list, local_outputs[key])
             tensor_list[dist.get_rank()] = local_outputs[key]
 
-        image_features = torch.cat(gathered_outputs['image_features'], dim=0)
-        text_features = torch.cat(gathered_outputs['text_features'], dim=0)
-        logits = (image_features @ text_features.T) / self.hparams.loss.temperature
-        return logits
+        image_features = torch.cat(gathered_outputs['image'], dim=0)
+        text_features = torch.cat(gathered_outputs['text'], dim=0)
+        return image_features @ text_features.T
 
-    def calculate_loss(self, logits):
+    def calculate_loss(self, logits: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Contrastive NCE loss, see https://paperswithcode.com/method/nt-xent for details
         """
         labels = torch.arange(0, logits.shape[0], device=self.device)
@@ -89,7 +87,7 @@ class I2T(pl.LightningModule):
             'nce': loss
         }
 
-    def calculate_metrics(self, logits):
+    def calculate_metrics(self, logits: torch.Tensor) -> Dict[str, torch.Tensor]:
         return {
             'binary_accuracy': (logits.diag().unsqueeze(1) >= logits).to(dtype=torch.float32).mean()
         }
