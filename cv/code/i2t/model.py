@@ -9,9 +9,32 @@ from torch import nn
 from bpemb import BPEmb
 from torchvision.models.resnet import ResNet
 from segmentation_models_pytorch.encoders import get_encoder
+from i2t.utils import instantiate, ClassDescription
+
+
+class ModalityEncoder(nn.Module):
+    """Simple wrapper around encoder, adds output projection layer.
+    """
+    def __init__(
+        self,
+        encoder: ClassDescription,
+        output_dim: int,
+        normalize: bool = True
+    ):
+        super().__init__()
+        self.encoder = instantiate(encoder)
+        self.projector = nn.Linear(self.encoder.output_dim, output_dim)
+        self.normalize = nn.functional.normalize if normalize else (lambda x: x)
+    
+    def forward(self, *args, **kwargs):
+        features = self.encoder(*args, **kwargs)
+        projected_features = self.projector(features)
+        return self.normalize(projected_features)
 
 
 class ImageModel(nn.Module):
+    """Thin wrapper around SMP encoders.
+    """
     def __init__(
         self,
         encoder_name: str = 'resnet50',
@@ -29,6 +52,8 @@ class ImageModel(nn.Module):
 
 
 class TextModel(nn.Module):
+    """Simple BoW-based text encoder.
+    """
     def __init__(
         self,
         hidden_size: int = 200,
