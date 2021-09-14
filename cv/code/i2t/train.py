@@ -24,11 +24,6 @@ def train(cfg: DictConfig) -> None:
         logger.warning(f"Not using missing checkpoint {resume_from_checkpoint}, starting from scratch...")
         resume_from_checkpoint = None
 
-    train_dataloader, val_dataloader = get_dataloaders(
-        **cfg.data,
-        batch_size=cfg.train.batch_size,
-    )
-
     callbacks = [instantiate(x) for x in cfg.train.callbacks.values()]
     plugins = [instantiate(x) for x in cfg.train.plugins.values()]
     trainer = pl.Trainer(
@@ -43,5 +38,12 @@ def train(cfg: DictConfig) -> None:
     model = I2T(config=cfg)
     if resume_from_checkpoint is not None:
         logger.info(f"Resuming training from checkpoint {resume_from_checkpoint}")
+    else:
+        model.init_pretrain_modules()
+
+    train_dataloader, val_dataloader = get_dataloaders(
+        **cfg.data,
+        batch_size=cfg.train.batch_size,
+    )
 
     trainer.fit(train_dataloaders=train_dataloader, val_dataloaders=val_dataloader, model=model)

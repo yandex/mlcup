@@ -1,5 +1,5 @@
 # generic imports
-from typing import Any, Callable, Dict
+from typing import Any, Optional, Dict
 import numpy as np
 import logging
 import jsonlines
@@ -15,7 +15,9 @@ from torch.utils.data import DataLoader
 
 # custom imports
 from bpemb import BPEmb
+from sentencepiece import SentencePieceProcessor
 from torch.utils.data._utils.collate import default_collate
+from i2t.utils import instantiate, ClassDescription
 
 
 logger = logging.getLogger(__name__)
@@ -45,13 +47,37 @@ def get_image_transform(randomize: bool):
         ])
 
 
+def text_collate_fn(items):
+    ids = []
+    offsets = [0]
+    for item in items:
+        ids.append(torch.tensor(item, dtype=torch.int64))
+        offsets.append(len(item))
+    return {
+        'ids': torch.cat(ids),
+        'offsets': torch.tensor(offsets[:-1]).cumsum(dim=0)
+    }
+
+
+
+class BPEmbTokenizer(BPEmb):
+    def __call__(self, text):
+        return self.encode_ids(text)
+
+
+class SentencePieceTokenizer(SentencePieceProcessor):
+    def __call__(self, text):
+        return self.encode(text, out_type=int)
+
 
 class I2TDataset(Dataset):
     def __init__(
         self,
         metadata_file: Path,
-        metadata_slice: slice,
         images_directory: Path,
+        tokenizer: ClassDescription,
+        start: int = 0,
+        end: Optional[int] = None,
         randomize: bool = True,
         tqdm_load: bool = False
     ):
@@ -62,74 +88,48 @@ class I2TDataset(Dataset):
                 reader = tqdm(reader)
             for obj in reader:
                 self.data.append((obj['image'], obj['queries']))
-        self.data = self.data[metadata_slice]
+        self.data = self.data[slice(start, end)]
 
         self.images_directory = Path(images_directory)
         self.randomize = randomize
         self.image_transform = get_image_transform(randomize=randomize)
-        self.tokenizer = BPEmb(lang="ru", dim=200, vs=200000, segmentation_only=True)
+        self.tokenizer = instantiate(tokenizer)
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx: int) -> Dict[str, Any]:
-        img, queries = self.data[idx]
+        img, texts = self.data[idx]
         img = Image.open((self.images_directory / str(img)).with_suffix('.jpg'))
         img = img.convert('RGB')
         img = self.image_transform(img)
         if self.randomize:
-            query = np.random.choice(queries)
+            text = np.random.choice(texts)
         else:
-            query = queries[0]
-        return {'image': img, 'text': self.tokenizer.encode_ids(query)}
-
-    @staticmethod
-    def text_collate_fn(items):
-        ids = []
-        offsets = [0]
-        for item in items:
-            ids.append(torch.tensor(item, dtype=torch.int64))
-            offsets.append(len(item))
-        return {
-            'ids': torch.cat(ids),
-            'offsets': torch.tensor(offsets[:-1]).cumsum(dim=0)
-        }
+            text = texts[0]
+        return {'image': img, 'text': self.tokenizer(text)}
 
     @staticmethod
     def collate_fn(items):
         return {
             'image': default_collate([x['image'] for x in items]),
-            'text': I2TDataset.text_collate_fn([x['text'] for x in items])
+            'text': text_collate_fn([x['text'] for x in items])
         }
 
 
 def get_dataloaders(
-    metadata_file: str,
-    images_directory: str,
-    batch_size: int = 512,
-    dataloader_workers: int = 8,
-    num_train_samples: int = 4e6,
-    tqdm_load: bool = False
+    train: ClassDescription,
+    val: ClassDescription,
+    batch_size: int,
+    dataloader_workers: int
 ):
-    train_dataset = I2TDataset(
-        metadata_file=Path(metadata_file),
-        metadata_slice=slice(0, num_train_samples),
-        images_directory=Path(images_directory),
-        randomize=True,
-        tqdm_load=tqdm_load
-    )
-    val_dataset = I2TDataset(
-        metadata_file=Path(metadata_file),
-        metadata_slice=slice(num_train_samples, None),
-        images_directory=Path(images_directory),
-        randomize=False,
-        tqdm_load=tqdm_load
-    )
+    train_dataset = instantiate(train)
+    val_dataset = instantiate(val)
 
     train_dataloader = DataLoader(
         train_dataset,
         batch_size=batch_size,
-        collate_fn=I2TDataset.collate_fn,
+        collate_fn=train_dataset.collate_fn,
         shuffle=True,
         num_workers=dataloader_workers,
         drop_last=True
@@ -137,7 +137,7 @@ def get_dataloaders(
     val_dataloader = DataLoader(
         val_dataset,
         batch_size=batch_size,
-        collate_fn=I2TDataset.collate_fn,
+        collate_fn=val_dataset.collate_fn,
         shuffle=False,
         num_workers=dataloader_workers,
         drop_last=False

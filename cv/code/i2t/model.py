@@ -60,12 +60,12 @@ class TextModel(nn.Module):
         hidden_layers: int = 3,
         embedding_size: int = 200,
         vocab_size: int = 200000,
-        pretrained_embeddings: bool = True,
+        pretrained_bpemb_embeddings: bool = True,
         freeze_embeddings: bool = False
     ):
         super().__init__()
 
-        if pretrained_embeddings:
+        if pretrained_bpemb_embeddings:
             emb = BPEmb(lang="ru", dim=embedding_size, vs=vocab_size)
             self.embedding = nn.EmbeddingBag.from_pretrained(
                 torch.tensor(emb.vectors),

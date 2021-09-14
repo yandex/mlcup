@@ -4,6 +4,8 @@ defaults:
   - loss: baseline
   - train: baseline
   - data: baseline
+  - data/paths: non_unique_queries
+  - tokenizer: bpemb
   - _self_
 
 ckpt_directory: checkpoints
