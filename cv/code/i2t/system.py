@@ -1,5 +1,6 @@
 # typing imports
 from typing import List, Dict, Tuple
+from torch._C import Value
 from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
 from torch.optim import Optimizer
 from omegaconf import DictConfig
@@ -7,6 +8,7 @@ from omegaconf import DictConfig
 # generic imports
 import logging
 from omegaconf import OmegaConf
+from operator import attrgetter
 
 # torch imports
 import pytorch_lightning as pl
@@ -94,7 +96,30 @@ class I2T(pl.LightningModule):
 
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[LRScheduler]]:
         config = self.hparams.optimization
-        optimizer = instantiate(config.optimizer, params=self.parameters())
+        param_groups = list()
+        used_params = set()
+        for encoder, param_group in config.get(param_groups, {}).items():
+            group_parameters = list()
+            for path in param_group.modules:
+                module = attrgetter(path)(self.encoders[encoder])
+                parameters = [x for x in module.parameters() if x.requires_grad]
+                if len(parameters) == 0:
+                    raise ValueError("No params covered")
+                conflicting_parameters = set(parameters) & set(used_params)
+                if len(conflicting_parameters) > 0:
+                    raise ValueError(f"Some parametrs are used in multiple config groups: {conflicting_parameters}")
+                used_params.update(parameters)
+                group_parameters.extend(parameters)
+            param_groups.append({
+                'params': group_parameters,
+                **param_group.params
+            })
+
+        param_groups.append({
+            'params': list(set(self.parameters()) - used_params)
+        })
+
+        optimizer = instantiate(config.optimizer, params=param_groups)
         lr_scheduler = OmegaConf.to_container(config.lr_scheduler, resolve=True)
         lr_scheduler['scheduler'] = instantiate(lr_scheduler['scheduler'], optimizer)
 
@@ -102,3 +127,11 @@ class I2T(pl.LightningModule):
             'optimizer': optimizer,
             'lr_scheduler': lr_scheduler
         }
+
+    def init_pretrain_modules(self):
+        if 'pretrain' not in self.hparams:
+            return
+        ckpt_path = self.hparams.pretrain.checkpoint_path
+        state_dict = torch.load(ckpt_path, map_location='cpu')['state_dict']
+        self.load_state_dict(state_dict, strict=True)
+        logger.info(f"Loaded pretrained state from checkpoint file {ckpt_path}")

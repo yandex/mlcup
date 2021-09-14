@@ -1,0 +1,4 @@
+# @package _data.paths
+metadata_file: /home/${oc.env:USER}/mlcup/data/train/metadata.json
+images_directory: /home/${oc.env:USER}/mlcup/data/train/images
+num_train_samples: 4_000_000

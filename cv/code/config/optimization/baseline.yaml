@@ -3,6 +3,9 @@ optimizer:
   args:
     lr: 1.0e-4
     weight_decay: 1.0e-6
+
+param_groups: {}
+
 lr_scheduler:
   scheduler:
     cls: torch.optim.lr_scheduler.MultiStepLR

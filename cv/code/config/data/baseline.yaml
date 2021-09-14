@@ -1,4 +1,21 @@
-metadata_file: /home/${oc.env:USER}/mlcup/data/train/metadata.json
-images_directory: /home/${oc.env:USER}/mlcup/data/train/images
 dataloader_workers: 8
-num_train_samples: 4_000_000
+
+train:
+  cls: i2t.data.I2TDataset
+  args:
+    metadata_file: ${_data.paths.metadata_file}
+    images_directory: ${_data.paths.images_directory}
+    tokenizer: ${_data.tokenizer}
+    start: 0
+    end: ${_data.paths.num_train_samples}
+    randomize: True
+
+val:
+  cls: i2t.data.I2TDataset
+  args:
+    metadata_file: ${_data.paths.metadata_file}
+    images_directory: ${_data.paths.images_directory}
+    tokenizer: ${_data.tokenizer}
+    start: ${_data.paths.num_train_samples}
+    end: null
+    randomize: False

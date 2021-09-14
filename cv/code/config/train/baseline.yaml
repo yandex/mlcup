@@ -21,8 +21,9 @@ callbacks:
     args:
       dirpath: ${ckpt_directory}
       every_n_epochs: 1
+      save_last: True
 logger:
   cls: pytorch_lightning.loggers.TensorBoardLogger
   args:
-    save_dir: ${ckpt_directory}/tb
+    save_dir: tb
     name: ${name}
