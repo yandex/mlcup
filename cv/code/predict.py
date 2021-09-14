@@ -70,7 +70,7 @@ class I2TInferer(object):
 @click.command()
 @click.option('--ckpt_path', help='Path to PL checkpoint')
 @click.option('--data_directory', help='Path to directory with evaluation datasets')
-@click.option('--predicts_directory', help='Path to directory where predictions should be put to')
+@click.option('--predicts_file', help='Path to file where predictions should be put to')
 @click.option('--limit_samples', default=None, type=int, help='Limit num of evaluated images')
 @click.option('--device', default='cpu', help='PyTorch device')
 @click.option('--num_threads', default=None, type=int, help='Optionally force number of torch threads')
@@ -78,7 +78,7 @@ class I2TInferer(object):
 def main(
     ckpt_path: str,
     data_directory: str,
-    predicts_directory: str,
+    predicts_file: str,
     limit_samples: Optional[int],
     device: str,
     num_threads: Optional[int],
@@ -87,24 +87,24 @@ def main(
     if num_threads is not None:
         torch.set_num_threads(num_threads)
     inferer = I2TInferer(ckpt_path=ckpt_path, device=device)
-    os.makedirs(predicts_directory, exist_ok=True)
     if dataset:
         datasets = dataset
     else:
         datasets = os.listdir(data_directory)
 
+    results = {}
     for dataset in datasets:
         with open(f"{data_directory}/{dataset}/classes.json", 'r') as f:
-            classes = json.load(f)
-        classes_labels = list(classes.values())
+            classes_labels = json.load(f)
         image_files = os.listdir(f'{data_directory}/{dataset}/img')
         if limit_samples is not None:
             image_files = image_files[:limit_samples]
         images = (Image.open(f'{data_directory}/{dataset}/img/{file}') for file in image_files)
         predicts = inferer.predict(images, classes_labels).tolist()
-        predicts = {file: predict for file, predict in zip(image_files, predicts)}
-        with open(f'{predicts_directory}/{dataset}.json', 'w') as f:
-            json.dump(predicts, f, indent=4)
+        predicts = {file.split('.')[0]: predict for file, predict in zip(image_files, predicts)}
+        results[dataset] = predicts
+    with open(predicts_file, 'w') as f:
+        json.dump(results, f, indent=4)
 
 if __name__ == "__main__":
     main()
