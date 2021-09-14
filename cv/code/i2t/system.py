@@ -98,22 +98,23 @@ class I2T(pl.LightningModule):
         config = self.hparams.optimization
         param_groups = list()
         used_params = set()
-        for encoder, param_group in config.get(param_groups, {}).items():
-            group_parameters = list()
-            for path in param_group.modules:
-                module = attrgetter(path)(self.encoders[encoder])
-                parameters = [x for x in module.parameters() if x.requires_grad]
-                if len(parameters) == 0:
-                    raise ValueError("No params covered")
-                conflicting_parameters = set(parameters) & set(used_params)
-                if len(conflicting_parameters) > 0:
-                    raise ValueError(f"Some parametrs are used in multiple config groups: {conflicting_parameters}")
-                used_params.update(parameters)
-                group_parameters.extend(parameters)
-            param_groups.append({
-                'params': group_parameters,
-                **param_group.params
-            })
+        if 'param_groups' in config:
+            for encoder, param_group in config.param_groups.items():
+                group_parameters = list()
+                for path in param_group.modules:
+                    module = attrgetter(path)(self.encoders[encoder])
+                    parameters = [x for x in module.parameters() if x.requires_grad]
+                    if len(parameters) == 0:
+                        raise ValueError("No params covered")
+                    conflicting_parameters = set(parameters) & set(used_params)
+                    if len(conflicting_parameters) > 0:
+                        raise ValueError(f"Some parametrs are used in multiple config groups: {conflicting_parameters}")
+                    used_params.update(parameters)
+                    group_parameters.extend(parameters)
+                param_groups.append({
+                    'params': group_parameters,
+                    **param_group.params
+                })
 
         param_groups.append({
             'params': list(set(self.parameters()) - used_params)
