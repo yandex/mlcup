@@ -3,16 +3,19 @@ of zero-shot classification accuracy.
 """
 
 # generic imports
-import click
 import json
-import numpy as np
+import argparse
 
 
-@click.command()
-@click.option('--gt_file', help='Path to file with ground truth labels')
-@click.option('--predicts_file', help='Path to file with predictions')
-@click.option('--strict', is_flag=True, help='Make sure predictions for all smaples are present')
-@click.option('--average', is_flag=True, help='Output average accuracy across datasets')
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gt_file', help='Path to file with ground truth labels')
+    parser.add_argument('--predicts_file', help='Path to file with predictions')
+    parser.add_argument('--strict', type=int, help='Make sure predictions for all smaples are present')
+    parser.add_argument('--average', type=int, help='Output average accuracy across datasets')
+    return parser.parse_args()
+
+
 def main(
     gt_file: str,
     predicts_file: str,
@@ -30,15 +33,21 @@ def main(
         keys = list(set(gt[dataset].keys()) & set(pred[dataset].keys()))
         pred_list = [pred[dataset][x] for x in keys]
         gt_list = [gt[dataset][x] for x in keys]
-        accuracy = (np.array(pred_list) == np.array(gt_list)).mean()
+        accuracy = sum((x == y) for x, y in zip(pred_list, gt_list)) / len(pred_list)
         results[dataset] = accuracy * 100
 
     if average:
-        accuracy = np.mean(list(results.values()))
-        print(f"Accuracy: {accuracy}")
+        accuracy = sum(results.values()) / len(results)
+        print("Accuracy: {}".format(accuracy))
     else:
-        print(f"Accuracies: {results}")
+        print("Accuracies: {}".format(results))
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_arguments()
+    main(
+        gt_file=args.gt_file,
+        predicts_file=args.predicts_file,
+        strict=bool(args.strict),
+        average=bool(args.average)
+    )

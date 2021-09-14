@@ -52,4 +52,7 @@ It will print something like `Accuracy: 60.56356`
 `setup.sh` and `predict.sh` are the two files used by Y.Contest to run your submission.
 `setup.sh` should install come extra required libraries missing in Y.Contest environment and `predict.sh` is run with two arguments: first is path to source data (like `contest/data/eval/public_subset`) and the second is the .json file where prediction should be put.
 
-To make a submission, simply archive whole `code` directory and send it to Y.Contest system for online evaulation. 
+To make a submission, simply archive whole `code` directory and send it to Y.Contest system for online evaulation:
+```bash
+zip -r submission.zip code/*
+```
