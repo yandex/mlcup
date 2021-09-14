@@ -32,7 +32,7 @@ and source images in each of them.
 To run zero-shot classes prediction on these datasets, run
 ```bash
 cd code
-python predict.py --ckpt_path /path/to/checkpoint --data_directory ../contest/data/public_subset/ --predicts_directory ../contest/predictions
+python predict.py --ckpt_path /path/to/checkpoint --data_directory ../contest/data/public_subset/ --predicts_file ../contest/predictions.json
 ```
 
 You may add `--device cuda` argument to speed up prediction locally.
@@ -41,15 +41,15 @@ arguments to imitate single available CPU.
 
 
 # Evaluating predictions on sample data
-Directory `contest/data/public_subset_gt` contains .json files with GT labels. You can calculate accuracy by running
+File `contest/data/public_subset_gt.json` contains GT labels. You can use them to calculate accuracy by running
 ```bash
-python ../contest/evaluate_predictions.py --gt_directory ../contest/data/eval/public_subset_gt --predicts_directory ../contest/predicts/ --average
+python ../contest/evaluate_predictions.py --gt_file ../contest/data/eval/public_subset_gt.json --predicts_file ../contest/predictions.json --average
 ```
 It will print something like `Accuracy: 60.56356`
 
 
 # Making a submission to Yandex Contest
 `setup.sh` and `predict.sh` are the two files used by Y.Contest to run your submission.
-`setup.sh` should install come extra required libraries missing in Y.Contest environment and `predict.sh` is run with two arguments: first is path to source data (like `contest/data/eval/public_subset`) and the second is the directory where predictions (in form of .json files) should be put.
+`setup.sh` should install come extra required libraries missing in Y.Contest environment and `predict.sh` is run with two arguments: first is path to source data (like `contest/data/eval/public_subset`) and the second is the .json file where prediction should be put.
 
 To make a submission, simply archive whole `code` directory and send it to Y.Contest system for online evaulation. 
