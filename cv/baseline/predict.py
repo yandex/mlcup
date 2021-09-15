@@ -2,11 +2,10 @@
 from omegaconf import OmegaConf
 
 # generic imports
-from typing import Optional, List
+from typing import Optional, List, Iterable
 from tqdm.auto import tqdm
 from PIL import Image
 import numpy as np
-from typing import Iterable
 import more_itertools
 import os
 import json
@@ -75,6 +74,7 @@ class I2TInferer(object):
 @click.option('--device', default='cpu', help='PyTorch device')
 @click.option('--num_threads', default=None, type=int, help='Optionally force number of torch threads')
 @click.option('--dataset', '-d', default=None, multiple=True, help='Optionally select datasets manually')
+@torch.no_grad()
 def main(
     ckpt_path: str,
     data_directory: str,
@@ -86,6 +86,7 @@ def main(
 ):
     if num_threads is not None:
         torch.set_num_threads(num_threads)
+
     inferer = I2TInferer(ckpt_path=ckpt_path, device=device)
     if dataset:
         datasets = dataset
