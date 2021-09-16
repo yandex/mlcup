@@ -16,7 +16,10 @@ python3 -m venv venv
 source venv/bin/activate
 pip3 install torch==1.8.2+cu111 torchvision==0.9.2+cu111 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html
 pip install -r requirements.txt
-CUDA_VISIBLE_DEVICES=1,2 python train.py +name=baseline train.trainer_params.gpus=2
+CUDA_VISIBLE_DEVICES=1,2 python train.py +name=baseline \
+    train.trainer_params.gpus=2 \
+    _data.paths.images_directory=/path/to/images/dir \
+    _data.paths.images_directory=/path/to/metadata.json
 ```
 
 # Pretrained checkpoint
@@ -43,9 +46,9 @@ arguments to imitate single available CPU.
 # Evaluating predictions on sample data
 File `contest/data/public_subset_gt.json` contains GT labels. You can use them to calculate accuracy by running
 ```bash
-python ../contest/evaluate_predictions.py --gt_file ../contest/data/eval/public_subset_gt.json --predicts_file ../contest/predictions.json --average
+python ../contest/evaluate_predictions.py --gt_file ../contest/data/public_subset_gt.json --predicts_file ../contest/predictions.json --average 1 --strict 1
 ```
-It will print something like `Accuracy: 60.56356`
+It will print an accuracy like `69.2057142857143`
 
 
 # Making a submission to Yandex Contest

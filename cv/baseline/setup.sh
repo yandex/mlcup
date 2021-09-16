@@ -1,1 +1,1 @@
-pip install -r requirements.txt -f ./wheels
+pip install --no-index --find-links ./wheels -r requirements.txt

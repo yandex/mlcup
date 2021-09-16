@@ -25,11 +25,14 @@ def main(
     gt = json.load(open(gt_file))
     pred = json.load(open(predicts_file))
 
+    assert set(gt.keys()) == set(pred.keys()), \
+	    "Some of the dataset keys are missing in the preditions: " + str((gt.keys()) ^ set(pred.keys()))
+
     results = dict()
     for dataset in gt.keys():
         if strict:
             assert set(gt[dataset].keys()) == set(pred[dataset].keys()), \
-                set(gt[dataset].keys()) ^ set(pred[dataset].keys())
+			   "Some of the images are missing in the predictions: " + str(set(gt[dataset].keys()) ^ set(pred[dataset].keys()))
         keys = list(set(gt[dataset].keys()) & set(pred[dataset].keys()))
         pred_list = [pred[dataset][x] for x in keys]
         gt_list = [gt[dataset][x] for x in keys]
@@ -38,9 +41,9 @@ def main(
 
     if average:
         accuracy = sum(results.values()) / len(results)
-        print("Accuracy: {}".format(accuracy))
+        print(accuracy)
     else:
-        print("Accuracies: {}".format(results))
+        print(format(results))
 
 
 if __name__ == "__main__":
