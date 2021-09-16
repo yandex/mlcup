@@ -1,1 +1,2 @@
-pip install --no-index --find-links ./wheels -r requirements.txt
+pip install --no-index --no-deps --target ./py_packages ./wheels/*
+echo "Setup finished successfully"

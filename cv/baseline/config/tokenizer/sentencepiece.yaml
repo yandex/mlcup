@@ -8,7 +8,7 @@ _data:
   tokenizer:
     cls: i2t.data.SentencePieceTokenizer
     args:
-      model_file: /home/${oc.env:USER}/mlcup/mlcup/cv/notebooks/non_unqiue.model
+      model_file: ./tokenizers/sentecepiece_500K.model
 
 model:
   text:

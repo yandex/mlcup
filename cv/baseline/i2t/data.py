@@ -1,10 +1,11 @@
 # generic imports
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 import numpy as np
 import logging
 import jsonlines
 from pathlib import Path
 from tqdm.auto import tqdm
+from hydra.utils import to_absolute_path
 
 # torch imports
 import torch
@@ -61,12 +62,26 @@ def text_collate_fn(items):
 
 
 class BPEmbTokenizer(BPEmb):
-    def __call__(self, text):
+    def __init__(self, model_file: str, **kwargs):
+        super().__init__(
+            model_file=to_absolute_path(model_file),
+            emb_file="unused",
+            segmentation_only=True,
+            **kwargs
+        )
+
+    def __call__(self, text: str) -> List[int]:
         return self.encode_ids(text)
 
 
 class SentencePieceTokenizer(SentencePieceProcessor):
-    def __call__(self, text):
+    def __init__(self, model_file: str, **kwargs):
+        super().__init__(
+            model_file=to_absolute_path(model_file),
+            **kwargs
+        )
+
+    def __call__(self, text: str) -> List[int]:
         return self.encode(text, out_type=int)
 
 

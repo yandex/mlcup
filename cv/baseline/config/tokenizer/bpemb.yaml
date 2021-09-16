@@ -8,10 +8,9 @@ _data:
   tokenizer:
     cls: i2t.data.BPEmbTokenizer
     args:
-      lang: ru
+      model_file: ./tokenizers/ru.wiki.bpe.vs200000.model
       dim: ${tokenizer.embedding_size}
       vs: ${tokenizer.vocab_size}
-      segmentation_only: True
 
 model:
   text:
