@@ -1,0 +1,4 @@
+# @package _data.paths
+metadata_file: <placeholder>
+images_directory: <placeholder>
+num_train_samples: 5_000_000

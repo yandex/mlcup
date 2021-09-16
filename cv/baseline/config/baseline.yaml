@@ -4,7 +4,7 @@ defaults:
   - loss: baseline
   - train: baseline
   - data: baseline
-  - data/paths: non_unique_queries
+  - data/paths: baseline
   - tokenizer: bpemb
   - _self_
 

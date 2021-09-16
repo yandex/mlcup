@@ -19,7 +19,7 @@ pip install -r requirements.txt
 CUDA_VISIBLE_DEVICES=1,2 python train.py +name=baseline \
     train.trainer_params.gpus=2 \
     _data.paths.images_directory=/path/to/images/dir \
-    _data.paths.images_directory=/path/to/metadata.json
+    _data.paths.metadata_file=/path/to/metadata.json
 ```
 
 # Pretrained checkpoint
