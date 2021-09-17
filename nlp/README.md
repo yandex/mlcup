@@ -26,3 +26,7 @@ python3.7 score.py original.txt detoxified.txt --embeddings embeddings_with_lemm
 ## Загрузки
 Модель и предобработанные эмбеддинги: [ссылка](https://disk.yandex.ru/d/9fAiLtgX-rMjtQ)
 
+## Бейзлайны
+Мы подготовили бейзлайны:
+* [бейзлайн](./offline_baseline.ipynb) для оффлайн задачи
+* [бейзлайн](./online_baseline) для онлайн задачи
