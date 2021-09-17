@@ -152,14 +152,14 @@ def greedy_match_embs(a, b, dots=None):
 def calc_semantic_distance(a, b):
     a_embs = calc_embs(a)
     b_embs = calc_embs(b)
-    return np.maximum(greedy_match_embs(a_embs, b_embs), 0)
+    return np.clip(greedy_match_embs(a_embs, b_embs), 0, 1)
 
 
 def distance_score(original, fixed):
     original = original.split()
     fixed = fixed.split()
     
-    return calc_semantic_distance(original, fixed) / len(original)
+    return calc_semantic_distance(original, fixed)
 
 
 def compute_score(original_sentences, fixed_sentences, threshold=0.5, batch_size=5):
