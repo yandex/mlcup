@@ -213,5 +213,3 @@ if __name__ == '__main__':
     with torch.inference_mode(True):
         print("Scoring", file=sys.stderr)
         print(100 * (1 - compute_score(original_texts, fixed_texts)), file=args.score)
-
-

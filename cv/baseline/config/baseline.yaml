@@ -1,0 +1,14 @@
+defaults:
+  - optimization: baseline
+  - model: baseline
+  - loss: baseline
+  - train: baseline
+  - data: baseline
+  - data/paths: baseline
+  - tokenizer: bpemb
+  - _self_
+
+ckpt_directory: checkpoints
+hydra:
+  run:
+    dir: ../outputs/${name}
