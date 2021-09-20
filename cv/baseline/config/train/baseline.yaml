@@ -1,0 +1,29 @@
+batch_size: 256
+trainer_params:
+  limit_train_batches: 1.0
+  gpus: 1
+  accelerator: ddp
+  precision: 16
+  log_every_n_steps: 10
+  flush_logs_every_n_steps: 100
+  checkpoint_callback: true
+  weights_summary: full
+  check_val_every_n_epoch: 1
+  val_check_interval: 0.5
+  num_sanity_val_steps: 8
+  terminate_on_nan: True
+resume_from_checkpoint: ${ckpt_directory}/last.ckpt
+plugins: {}
+callbacks:
+  lr_logging: pytorch_lightning.callbacks.LearningRateMonitor
+  ckpt:
+    cls: pytorch_lightning.callbacks.ModelCheckpoint
+    args:
+      dirpath: ${ckpt_directory}
+      every_n_epochs: 1
+      save_last: True
+logger:
+  cls: pytorch_lightning.loggers.TensorBoardLogger
+  args:
+    save_dir: tb
+    name: ${name}

@@ -1,0 +1,20 @@
+optimizer:
+  cls: torch.optim.Adam
+  args:
+    lr: 1.0e-4
+    weight_decay: 1.0e-6
+
+param_groups:
+  text:
+    modules:
+      - encoder.embedding
+    params:
+      lr: 0.1
+
+lr_scheduler:
+  scheduler:
+    cls: torch.optim.lr_scheduler.MultiStepLR
+    args:
+      milestones: [60, 90]
+      gamma: 0.1
+  interval: epoch

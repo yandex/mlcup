@@ -1,0 +1,11 @@
+torch>=1.8
+torchvision
+numpy
+pillow
+pytorch-lightning==1.4.*
+segmentation-models-pytorch==0.2.0
+bpemb==0.3.3
+jsonlines
+more-itertools
+hydra-core==1.1.1
+click

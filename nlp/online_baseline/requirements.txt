@@ -1,0 +1,5 @@
+statsmodels
+python-dateutil
+patsy
+six
+pytz
