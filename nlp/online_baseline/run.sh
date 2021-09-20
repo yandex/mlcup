@@ -1,3 +1,4 @@
+set -e 
 echo "Running!"
 # set this env variable so we can use the modules installed in setup.sh
 export PYTHONUSERBASE=$(realpath modules)

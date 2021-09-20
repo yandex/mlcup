@@ -1,0 +1,9 @@
+pytorch
+tensorflow
+numpy
+sklearn
+scikit-learn
+scipy
+tqdm
+transformers
+pandas
