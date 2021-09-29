@@ -26,6 +26,7 @@ def main(
     del ckpt['lr_schedulers']
     del ckpt['callbacks']
     ckpt['hyper_parameters']['model']['text']['args']['encoder']['args']['pretrained_bpemb_embeddings'] = False
+    ckpt['hyper_parameters']['model']['image']['args']['encoder']['args']['weights'] = None
     cfg = OmegaConf.create(ckpt['hyper_parameters'])
     model = I2T(config=cfg)
     model.load_state_dict(ckpt['state_dict'])
