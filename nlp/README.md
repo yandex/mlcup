@@ -34,3 +34,8 @@ python3.7 score.py original.txt detoxified.txt --embeddings embeddings_with_lemm
 Мы подготовили бейзлайны:
 * [бейзлайн](./offline_baseline.ipynb) для оффлайн задачи
 * [бейзлайн](./online_baseline) для онлайн задачи
+
+# Список установленных пакетов
+
+Список установленных в системе Яндекс.Контест пакетов вместе с их версиями
+вы можете найти в файле `packages-versions.txt`

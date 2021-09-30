@@ -69,3 +69,8 @@ To make a submission, simply archive whole `baseline` directory and send it to Y
 cd baseline
 zip -r ../submission.zip ./*
 ```
+
+# Package versions
+
+List of all packages have been installed in Yandex Contest and it's version you can
+find in `packages-versions.txt`
