@@ -11,6 +11,11 @@ from sklearn.neighbors import KDTree
 
 TOKENIZATION_TYPE='sentencepiece'
 
+ALLOWED_ALPHABET=list(map(chr, range(ord('а'), ord('я') + 1)))
+ALLOWED_ALPHABET.extend(map(chr, range(ord('a'), ord('z') + 1)))
+ALLOWED_ALPHABET.extend(list(map(str.upper, ALLOWED_ALPHABET)))
+ALLOWED_ALPHABET = set(ALLOWED_ALPHABET)
+
 
 def is_word_start(token):
     if TOKENIZATION_TYPE == 'sentencepiece':
@@ -21,10 +26,13 @@ def is_word_start(token):
 
 
 def normalize(sentence, max_tokens_per_word=20):
-    sentence = ''.join(map(lambda c: c if c.isalpha() else ' ', sentence.lower()))
+    def validate_char(c):
+        return c in ALLOWED_ALPHABET
+
+    sentence = ''.join(map(lambda c: c if validate_char(c) else ' ', sentence.lower()))
     ids = tokenizer(sentence)['input_ids']
     tokens = tokenizer.convert_ids_to_tokens(ids)[1:-1]
-    
+
     result = []
     num_continuation_tokens = 0
     for token in tokens:
@@ -35,7 +43,7 @@ def normalize(sentence, max_tokens_per_word=20):
         else:
             num_continuation_tokens = 0
             result.extend([' ', token.lstrip('▁#')])
-    
+
     return ''.join(result).strip()
 
 
