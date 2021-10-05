@@ -15,27 +15,21 @@ model = AutoModelForSequenceClassification.from_pretrained("trained_roberta/")
 Модель получена дообучением многоязыковой RoBERTa: [исходная модель](https://huggingface.co/unitary/multilingual-toxic-xlm-roberta)
 
 ## Оценка качества
-Для каждого исправленного комментария мы будем вычислять и усреднять следущую метрику:
-* если сеть считает комментарий токсичным (вероятность больше 0.5), 0
-* если сеть не считает комментарий токсичным, вычисляется близость исходного и измененного предложения (подробнее описано в [evaluation.pdf](./evaluation.pdf) )
+Описание метрики можно посмотреть в условии offline-задачи
 
 Проверять исправленные комментарии мы будем скриптом [score.py](./score.py)
 
 Пример команды запуска:
 ```
-python3.7 score.py original.txt detoxified.txt --embeddings embeddings_with_lemmas.npz --model ./trained_roberta/ --score - 
+python3.7 score.py original.txt detoxified.txt --embeddings embeddings_with_lemmas.npz --model ./trained_roberta/ --lm lm.binary --score - 
 ```
 \*для работы кода надо скачать и разархивировать модель и предобработанные эмбеддинги (см. секцию [Загрузки](#загрузки)) и установить необходимые библиотеки
 
 ## Загрузки
 Модель и предобработанные эмбеддинги: [ссылка](https://disk.yandex.ru/d/9fAiLtgX-rMjtQ)
+Языковая модель: [ссылка](https://disk.yandex.ru/d/wXH__vIurMwVdA)
 
 ## Бейзлайны
 Мы подготовили бейзлайны:
 * [бейзлайн](./offline_baseline.ipynb) для оффлайн задачи
 * [бейзлайн](./online_baseline) для онлайн задачи
-
-# Список установленных пакетов
-
-Список установленных в системе Яндекс.Контест пакетов вместе с их версиями
-вы можете найти в файле `packages-versions.txt`

@@ -1,15 +1,27 @@
-import sys
+# encoding=utf-8
+import numpy as np
+
+import os
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 from torch import softmax, sigmoid
 from tqdm.auto import tqdm
-import numpy as np
 import argparse
 from pymystem3 import Mystem
+import sys
+from collections import Counter
+from functools import partial
+import kenlm
 
 
 TOXIC_CLASS=-1
 TOKENIZATION_TYPE='sentencepiece'
+
+
+ALLOWED_ALPHABET=list(map(chr, range(ord('а'), ord('я') + 1)))
+ALLOWED_ALPHABET.extend(map(chr, range(ord('a'), ord('z') + 1)))
+ALLOWED_ALPHABET.extend(list(map(str.upper, ALLOWED_ALPHABET)))
+ALLOWED_ALPHABET = set(ALLOWED_ALPHABET)
 
 
 def logits_to_toxic_probas(logits):
@@ -29,7 +41,10 @@ def is_word_start(token):
 
 
 def normalize(sentence, max_tokens_per_word=20):
-    sentence = ''.join(map(lambda c: c if c.isalpha() else ' ', sentence.lower()))
+    def validate_char(c):
+        return c in ALLOWED_ALPHABET
+    
+    sentence = ''.join(map(lambda c: c if validate_char(c) else ' ', sentence.lower()))
     ids = tokenizer(sentence)['input_ids']
     tokens = tokenizer.convert_ids_to_tokens(ids)[1:-1]
     
@@ -60,7 +75,7 @@ def iterate_batches(data, batch_size=40):
 
 def predict_toxicity(sentences, batch_size=5, threshold=0.5, return_scores=False, verbose=True):
     results = []
-    tqdm_fn = tqdm if verbose else lambda x, total: x
+    tqdm_fn = partial(tqdm, miniters=50) if verbose else lambda x, total: x
     
     for batch in tqdm_fn(iterate_batches(sentences, batch_size), total=np.ceil(len(sentences) / batch_size)):
         normlized = [normalize(sent, max_tokens_per_word=5) for sent in batch]
@@ -80,10 +95,11 @@ def get_w2v_indicies(a):
         a = a.split()
     for w in a:
         if w in embs_voc:
-            res.append(embs_voc[w])
+            res.append((w, embs_voc[w]))
         else:
-            lemma = stemmer.lemmatize(w)[0]
-            res.append(embs_voc.get(lemma, None))
+            for lemma in stemmer.lemmatize(w):
+                if lemma.isalpha():
+                    res.append((w, embs_voc.get(lemma, None)))
     return res
 
 
@@ -102,57 +118,67 @@ def load_embeddings(path):
 def calc_embs(words):
     words = ' '.join(map(normalize, words))
     inds = get_w2v_indicies(words)
-    return [None if i is None else embs_vectors[i] for i in inds]
+    return [(w, i if i is None else embs_vectors[i]) for w, i in inds]
 
 
-def count_none(array):
-    res = 0
-    for el in array:
-        if el is None:
-            res += 1
-    return res
+def calc_single_embedding_dist(a, b):
+    a_s, a_v = a
+    b_s, b_v = b
+    if a_s == b_s:
+        return 0.0
+    if a_v is None or b_v is None:
+        return 1.0
+    a = a_v
+    b = b_v
+    # inexact match is punished by 0.1
+    return 0.1 + 0.9 * (1 - a.dot(b) / np.linalg.norm(a) / np.linalg.norm(b)) / 2
 
 
-def greedy_match_embs(a, b, dots=None):
-    if len(a) == 0:
-        return len(b)
-    if len(b) == 0:
-        return len([x for x in a if x is not None])
-    # compute dot-product on initial run
-    if dots is None:
-        a_none_count = count_none(a)
-        b_none_count = count_none(b)
+def greedy_match_embs(a, b, max_dist=99999, cache=None, a_ind=0, b_ind=0):
+    a_len = len(a) - a_ind
+    b_len = len(b) - b_ind
+    minlen = min(a_len, b_len)
+    maxlen = max(a_len, b_len)
+    if minlen == 0:
+        return np.minimum(maxlen, max_dist)
+    if maxlen - minlen >= max_dist:
+        return max_dist
+    
+    if cache is None:
+        cache = {}
+    
+    cache_key = (a_len, b_len)
+    if cache_key in cache:
+        return cache[cache_key]
         
-        if a_none_count + b_none_count > 0:
-            # None values don't match anything except other None values
-            return max(b_none_count - a_none_count, 0) + greedy_match_embs(
-                [x for x in a if x is not None],
-                [x for x in b if x is not None]
-            )
-        # scale embeddings so that their dot product turns into cosine
-        a = np.array(a) / np.linalg.norm(a, axis=1, keepdims=True)
-        b = np.array(b) / np.linalg.norm(b, axis=1, keepdims=True)
-        dots = np.dot(a, b.T)
-    # select the closest embeddings
-    # note: assume None embeddings are filtered out at this point
-    a_closest, b_closest = np.unravel_index(np.argmax(dots), dots.shape)
-    min_dist = (1 - dots[a_closest, b_closest]) / 2
+    min_dist = max_dist
     
-    # exclude the matched embeddings from the subsequent iterations
-    remaining_a_inds = np.arange(len(a)) != a_closest
-    remaining_b_inds = np.arange(len(b)) != b_closest
+    first_dist = calc_single_embedding_dist(a[a_ind], b[b_ind])
+    if max_dist >= first_dist:
+        min_dist = np.minimum(min_dist, first_dist + greedy_match_embs(
+            a, b, max_dist, cache, a_ind + 1, b_ind + 1
+        ))
     
-    return min_dist + greedy_match_embs(
-        a[remaining_a_inds], 
-        b[remaining_b_inds], 
-        dots[remaining_a_inds][:, remaining_b_inds]
-    )
+    if first_dist > 0 and max_dist >= 1:
+        min_dist = np.minimum(min_dist, 1 + greedy_match_embs(
+            a, b, max_dist, cache, a_ind + 1, b_ind
+        ))
+        min_dist = np.minimum(min_dist, 1 + greedy_match_embs(
+            a, b, max_dist, cache, a_ind, b_ind + 1
+        ))
+    
+    cache[cache_key] = min_dist
+    
+    return min_dist
+
 
 
 def calc_semantic_distance(a, b):
     a_embs = calc_embs(a)
     b_embs = calc_embs(b)
-    return np.clip(greedy_match_embs(a_embs, b_embs), 0, 1)
+    
+    clip_distance = 5  # this clips long computations
+    return np.exp(-(greedy_match_embs(a_embs, b_embs, max_dist=clip_distance) / (0.6 * np.log(1 + len(a)))) ** 2)
 
 
 def distance_score(original, fixed):
@@ -162,20 +188,39 @@ def distance_score(original, fixed):
     return calc_semantic_distance(original, fixed)
 
 
-def compute_score(original_sentences, fixed_sentences, threshold=0.5, batch_size=5):
-    fixed_preds = predict_toxicity(fixed_sentences, threshold=threshold, batch_size=batch_size)
+def compute_lmdiff(original, fixed):
+    original_lm_logproba = lm.score(original, bos=True, eos=True)
+    fixed_lm_logproba = lm.score(fixed, bos=True, eos=True)
     
+    probability_fraction = 10**((fixed_lm_logproba - original_lm_logproba) / 25)
+    
+    return np.clip(probability_fraction, 0.0, 1.0)
+
+
+def compute_score(original_sentences, fixed_sentences, threshold=0.5, batch_size=5):
+    fixed_toxicities = predict_toxicity(fixed_sentences, threshold=threshold, batch_size=batch_size, return_scores=True)
     scores = []
-    for original_sentence, fixed_sentence, fixed_pred in tqdm(zip(
-        original_sentences, fixed_sentences, fixed_preds
-    )):
+    lmdiffs = []
+    emb_dists = []
+    for original_sentence, fixed_sentence, fixed_toxicity in tqdm(zip(
+        original_sentences, fixed_sentences, fixed_toxicities
+    ), miniters=250):
         original_sentence = normalize(original_sentence)
         fixed_sentence = normalize(fixed_sentence)
-        if fixed_pred:
-            score = 1
-        else:
-            score = distance_score(original_sentence, fixed_sentence)
+        
+        distance = distance_score(original_sentence, fixed_sentence)
+        lmdiff = compute_lmdiff(original_sentence, fixed_sentence)
+        
+        score = (1 - fixed_toxicity) * distance * lmdiff
+        
+        lmdiffs.append(lmdiff)
+        emb_dists.append(distance)
         scores.append(score)
+    
+    print('average toxicity:', np.mean(fixed_toxicities), file=sys.stderr)
+    print('mean lmdiff:', np.mean(lmdiffs), file=sys.stderr)
+    print('mean distance_score:', np.mean(emb_dists), file=sys.stderr)
+    
     return np.mean(scores)
 
 
@@ -186,6 +231,7 @@ def parse_args():
     parser.add_argument('--score', type=argparse.FileType('w'))
     parser.add_argument('--model', required=True, type=str)
     parser.add_argument('--embeddings', type=str, required=True)
+    parser.add_argument('--lm', type=str, required=True)
     parser.add_argument('--device', type=str, choices=['cuda', 'cpu'], default='cpu')
     
     return parser.parse_args()
@@ -206,10 +252,14 @@ if __name__ == '__main__':
     assert len(original_texts) == len(fixed_texts)
 
     stemmer = Mystem()
+    
+    print("Loading LM", file=sys.stderr)
+    lm = kenlm.Model(args.lm)
 
     print("Loading embeddings", file=sys.stderr)
     embs_vectors, embs_voc, embs_voc_by_id = load_embeddings(args.embeddings)
     
     with torch.inference_mode(True):
         print("Scoring", file=sys.stderr)
-        print(100 * (1 - compute_score(original_texts, fixed_texts)), file=args.score)
+        print("{:.2f}".format(100 * compute_score(original_texts, fixed_texts)), file=args.score)
+
